@@ -4,8 +4,8 @@ rm(list = ls())
 OU_generate <- function(mu, nu, sigma, timestep = 0.01, Npaths = 1e5, timemin = 0, timemax = 4, plot = FALSE, Nshow = NULL){
   # genearte diffusion term.
   Nlen <- as.integer(round((timemax - timemin)/timestep)) # there are Nlen points to be generated per path
-  # add as.integer and round function because of floating number issue (who knows what exactly happened? something might CS scientist know)
-  diffusion <- matrix(sqrt(timestep) * sigma * rnorm(Npaths*Nlen, 0, 1), ncol = Npaths, nrow = Nlen) # We need to generate n paths (each one column), and we each path Nlen points (rows)
+  # add as.integer and round function because of floating number issue (error would happen when doing some divisions)
+  diffusion <- matrix(sqrt(timestep) * sigma * rnorm(Npaths*Nlen, 0, 1), ncol = Npaths, nrow = Nlen) # We need to generate n paths (each one column), and each path have Nlen points (rows)
   pmat <- matrix(0, nrow = Nlen + 1, ncol = Npaths)  #s tarting values for all paths at 0, Nlen + 1 is to make it starts from the second row for all paths
   for (i in 1:Nlen){ #For all pathes, accumulate datapoints based on the present value.
     pmat[i+1, ] = pmat[i, ] + (nu * (mu - pmat[i,])) * timestep + diffusion[i,]
@@ -109,8 +109,7 @@ for (i in seq_along(seq_timestep)) {
   mu_estimates[i] <- result$par[2]
 }
 
-# --- PLOT ---
-
+### plotting
 plot(seq_timestep, nu_estimates, type = 'o', pch = 16, col = 'blue',
      ylim = range(c(nu_estimates, mu_estimates, 0.5)),
      xlab = "Timestep", ylab = "Parameter Estimate",
@@ -120,6 +119,7 @@ abline(h = 0.5, col = 'red', lty = 2)
 legend("bottomright", legend = c("Estimated ν", "Estimated μ", "True Value"),
        col = c("blue", "darkgreen", "red"), lty = c(1, 1, 2), pch = 16)
 
+# Plot use bias
 plot(seq_timestep, abs(nu_estimates-true_nu), type = 'o', pch = 16, col = 'blue',
      ylim = range(c(abs(nu_estimates- true_nu), abs(mu_estimates-true_mu), 0)),
      xlab = "Timestep", ylab = "Parameter Estimate",
