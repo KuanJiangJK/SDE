@@ -113,7 +113,7 @@ for (i in seq_along(seq_timestep)) {
 
 plot(seq_timestep, nu_estimates, type = 'o', pch = 16, col = 'blue',
      ylim = range(c(nu_estimates, mu_estimates, 0.5)),
-     xlab = "Timestep (Δ)", ylab = "Parameter Estimate",
+     xlab = "Timestep", ylab = "Parameter Estimate",
      main = "Estimates of OU Parameters by Timestep (Fixed Total Time)")
 lines(seq_timestep, mu_estimates, type = 'o', pch = 16, col = 'darkgreen')
 abline(h = 0.5, col = 'red', lty = 2)
@@ -122,7 +122,7 @@ legend("bottomright", legend = c("Estimated ν", "Estimated μ", "True Value"),
 
 plot(seq_timestep, abs(nu_estimates-true_nu), type = 'o', pch = 16, col = 'blue',
      ylim = range(c(abs(nu_estimates- true_nu), abs(mu_estimates-true_mu), 0)),
-     xlab = "Timestep (Δ)", ylab = "Parameter Estimate",
+     xlab = "Timestep", ylab = "Parameter Estimate",
      main = "Estimates of OU Parameters by Timestep (Fixed Total Time)")
 lines(seq_timestep, abs(mu_estimates-true_mu), type = 'o', pch = 16, col = 'darkgreen')
 abline(h = 00, col = 'red', lty = 2)
