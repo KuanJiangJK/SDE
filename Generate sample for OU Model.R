@@ -66,11 +66,7 @@ for (i in 1:Nlen){ #For all pathes, accumulate datapoints based on the present v
 # Padding the difffusion with one extra zero (so I can add them up)
 
 # Visualise the first Nshow sample paths
-Nshow <- 3
+Nshow <- 50
 matplot(t, pmat[, 1:Nshow], col = grey(.5, .5), type = 'l', lty = 1, xlab = 't', ylab = expression('X'['t']), las = 1, bty = 'n')
-
-
-
-
 
 
