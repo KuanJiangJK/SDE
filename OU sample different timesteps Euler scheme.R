@@ -3,7 +3,7 @@ rm(list = ls())
 ## OU Generation function
 OU_generate <- function(mu, nu, sigma, timestep = 0.01, Npaths = 1e5, timemin = 0, timemax = 4, plot = FALSE, Nshow = NULL){
   # genearte diffusion term.
-  Nlen <- as.integer(round((timemax - timemin)/timestep)) # there are Nlen points to be generated per path
+  Nlen <- round((timemax - timemin)/timestep) # there are Nlen points to be generated per path
   # add as.integer and round function because of floating number issue (error would happen when doing some divisions)
   diffusion <- matrix(sqrt(timestep) * sigma * rnorm(Npaths*Nlen, 0, 1), ncol = Npaths, nrow = Nlen) # We need to generate n paths (each one column), and each path have Nlen points (rows)
   pmat <- matrix(0, nrow = Nlen + 1, ncol = Npaths)  #s tarting values for all paths at 0, Nlen + 1 is to make it starts from the second row for all paths
@@ -129,3 +129,50 @@ abline(h = 00, col = 'red', lty = 2)
 legend("bottomright", legend = c("Estimated ν", "Estimated μ", "True Value"),
        col = c("blue", "darkgreen", "red"), lty = c(1, 1, 2), pch = 16)
 
+
+
+rm(list = ls())
+timemin <- 0
+timemax <- 100
+seq_timestep <- seq(0.01, 20, 0.02) # Genearte a timestep sequence
+timestep <- seq_timestep[1] 
+t <- seq(timemin, timemax, timestep)
+nu <- 1
+mu <- 0.5
+sigma <-0.1
+x <- numeric(length(t))
+t <- seq(timemin, timemax, timestep)
+x[1] <- 0
+for (i in 1:(length(t)-1)){ # First of all generat a sequence with timestep 0.001
+  x[i+1] <- rnorm(1, x[i] * exp(-nu * (t[i+1]-t[i])) + mu * (1 - exp(-nu * (t[i+1]-t[i]))), 
+                  sqrt( (sigma^2) * 0.5 / nu * (1-exp(-2*nu*(t[i+1]-t[i]))))
+                  )
+} 
+
+# plot(t, x, col = grey(.5, .5),  type = 'l', lty = 1, xlab = 't', ylab = expression('X'['t']), las = 1, bty = 'n')
+
+# Containers
+nu_estimates <- numeric(length(seq_timestep))
+mu_estimates <- numeric(length(seq_timestep))
+
+# Loop over timestep values
+for (i in seq_along(seq_timestep)) {
+  t_sub <- seq(timemin, timemax, seq_timestep[i])
+  x_sub <- x[t %in% t_sub]
+  delta <- seq_timestep[i]
+  result <- optim(par = c(1, 1), fn = Euler_LL_OU, X = x_sub, delta = delta)
+  nu_estimates[i] <- result$par[1]
+  mu_estimates[i] <- result$par[2]
+}
+
+### plotting
+plot(seq_timestep, nu_estimates, type = 'o', pch = 16, col = 'blue', cex =  0.1,
+     ylim = range(c(- 5, 5)),
+     xlab = "Timestep", ylab = "Parameter Estimate",
+     main = "Estimates of OU Parameters by Timestep (Fixed Total Time)")
+lines(seq_timestep, mu_estimates, type = 'o', pch = 16, col = 'darkgreen', cex =  0.1,)
+abline(h = mu, col = 'darkgreen', lty = 2)
+abline(h = nu, col = 'blue', lty = 2)
+
+legend("bottomright", legend = c("Estimated ν", "Estimated μ", "True Value"),
+       col = c("blue", "darkgreen", "red"), lty = c(1, 1, 2), pch = 16)
