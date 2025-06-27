@@ -1,178 +1,100 @@
 rm(list = ls())
 
-## OU Generation function
-OU_generate <- function(mu, nu, sigma, timestep = 0.01, Npaths = 1e5, timemin = 0, timemax = 4, plot = FALSE, Nshow = NULL){
-  # genearte diffusion term.
-  Nlen <- round((timemax - timemin)/timestep) # there are Nlen points to be generated per path
-  # add as.integer and round function because of floating number issue (error would happen when doing some divisions)
-  diffusion <- matrix(sqrt(timestep) * sigma * rnorm(Npaths*Nlen, 0, 1), ncol = Npaths, nrow = Nlen) # We need to generate n paths (each one column), and each path have Nlen points (rows)
-  pmat <- matrix(0, nrow = Nlen + 1, ncol = Npaths)  #s tarting values for all paths at 0, Nlen + 1 is to make it starts from the second row for all paths
-  for (i in 1:Nlen){ #For all pathes, accumulate datapoints based on the present value.
-    pmat[i+1, ] = pmat[i, ] + (nu * (mu - pmat[i,])) * timestep + diffusion[i,]
-  }
-  t <- seq(timemin, timemax, timestep)
-  if (plot == TRUE){
-    if (is.null(Nshow)){
-      Nshow <- (Npaths*0.001)+1
-    }
-    matplot(t, pmat[, sample(seq(1, Npaths, 1), Nshow)], col = grey(.5, .5), type = 'l', lty = 1, xlab = 't', ylab = expression('X'['t']), las = 1, bty = 'n')
-  }
-  return(list(time = t, paths = pmat))
-}
-
-
-# Test
-# OU <- OU_generate(mu = 0.5, nu = 0.5, sigma = 0.3, timestep = 0.01, Npaths = 1e3, timemin = 0, timemax = 300, plot = TRUE, 50)
-
-
-########################################### Generate data with different timesteps
-# Same time range, same sample size, different timesteps.
-# generate data with different timestep (50 cols of data with different timestep (but same sample size))
-seq_timestep <- seq(0.01, 0.5, 0.01)
-n_sample <- 2500
-seq_timemax <- n_sample * seq_timestep # determines the time range (0 to seq_timemax)
-OU_sample <- matrix(NA, nrow = n_sample+1, ncol = length(seq_timestep))
-for (i in 1: length(seq_timestep)){
-  timestep <- seq_timestep[i]
-  timemax <- seq_timemax[i]
-  OU <- OU_generate(mu = 0.5, nu = 0.5, sigma = 1, timestep, Npaths = 1, timemin = 0, timemax)
-  OU_sample[,i] <- OU$paths
-}
-
-## likelihood calculation
-## Assume an OU drift function, as well as a constant diffusion term. OU drift = nu * (mu - x)
-OU_drift <- function(x, theta) {
-  nu <- theta[1]
-  mu <- theta[2]
-  return(nu * (mu - x))
-} # Drift part is expressed as b(xi-1, theta), theta here is c(nu, mu)
-
-Euler_LL_OU <- function(theta, X, delta) { # delta is the timestep
-  # theta = c(nu, mu), I don't need to define it here, the function in optim will bring it to the optimization 
-  X0 <- X[1:(length(X) - 1)]
-  X1 <- X[2:length(X)]
-  b_vals <- OU_drift(X0, theta) ## drift part values
-  loglik <- sum((X1 - X0) * b_vals) - 0.5 * delta * sum(b_vals^2)
-  return(-loglik)  # negative for minimization
-}
-
-
-# Initialize storage for estimates
-nu_estimates <- numeric(length(seq_timestep))
-mu_estimates <- numeric(length(seq_timestep))
-
-# Estimate parameters for each timestep
-for (i in seq_along(seq_timestep)) {
-  X <- OU_sample[, i]
-  delta <- seq_timestep[i]
-  # optimization, starting value at 0.4 and 0.4
-  result <- optim(par = c(0.4, 0.4), fn = Euler_LL_OU, X = X, delta = delta)
-  # Store results
-  nu_estimates[i] <- result$par[1]
-  mu_estimates[i] <- result$par[2]
-}
-
-# Plotting
-plot(seq_timestep, nu_estimates, type = 'o', pch = 16, col = 'blue',
-     ylim = range(c(nu_estimates, mu_estimates, 0.5)),
-     xlab = "Timestep", ylab = "Parameter Estimate",
-     main = "Estimates of OU Parameters by Timestep")
-lines(seq_timestep, mu_estimates, type = 'o', pch = 16, col = 'darkgreen')
-abline(h = 0.5, col = 'red', lty = 2)
-legend("bottomright", legend = c("Estimated ν", "Estimated μ", "True Value"),
-       col = c("blue", "darkgreen", "red"), lty = c(1, 1, 2), pch = 16)
-
-
-######################################################################################
-# same time range, different sample size, different timesteps.
-# Parameters
-true_nu <- 0.5
-true_mu <- 0.5
-true_sigma <- 1
-timemax <- 2000
-seq_timestep <- seq(0.02, 5, 0.02)
-
-# Containers
-nu_estimates <- numeric(length(seq_timestep))
-mu_estimates <- numeric(length(seq_timestep))
-
-# Loop over timestep values
-for (i in seq_along(seq_timestep)) {
-  timestep <- seq_timestep[i]
-  OU <- OU_generate(mu = true_mu, nu = true_nu, sigma = true_sigma,
-                    timestep = timestep, timemin = 0, timemax = timemax,
-                    Npaths = 1, plot = FALSE)
-  X <- OU$paths[, 1]
-  delta <- timestep
-  result <- optim(par = c(0.4, 0.4), fn = Euler_LL_OU, X = X, delta = delta)
-  nu_estimates[i] <- result$par[1]
-  mu_estimates[i] <- result$par[2]
-}
-
-### plotting
-plot(seq_timestep, nu_estimates, type = 'o', pch = 16, col = 'blue',
-     ylim = range(c(nu_estimates, mu_estimates, 0.5)),
-     xlab = "Timestep", ylab = "Parameter Estimate",
-     main = "Estimates of OU Parameters by Timestep (Fixed Total Time)")
-lines(seq_timestep, mu_estimates, type = 'o', pch = 16, col = 'darkgreen')
-abline(h = 0.5, col = 'red', lty = 2)
-legend("bottomright", legend = c("Estimated ν", "Estimated μ", "True Value"),
-       col = c("blue", "darkgreen", "red"), lty = c(1, 1, 2), pch = 16)
-
-# Plot use bias
-plot(seq_timestep, abs(nu_estimates-true_nu), type = 'o', pch = 16, col = 'blue',
-     ylim = range(c(abs(nu_estimates- true_nu), abs(mu_estimates-true_mu), 0)),
-     xlab = "Timestep", ylab = "Parameter Estimate",
-     main = "Estimates of OU Parameters by Timestep (Fixed Total Time)")
-lines(seq_timestep, abs(mu_estimates-true_mu), type = 'o', pch = 16, col = 'darkgreen')
-abline(h = 00, col = 'red', lty = 2)
-legend("bottomright", legend = c("Estimated ν", "Estimated μ", "True Value"),
-       col = c("blue", "darkgreen", "red"), lty = c(1, 1, 2), pch = 16)
-
-
-
-rm(list = ls())
-timemin <- 0
-timemax <- 100
-seq_timestep <- seq(0.01, 20, 0.02) # Genearte a timestep sequence
-timestep <- seq_timestep[1] 
-t <- seq(timemin, timemax, timestep)
+# True parameters
 nu <- 1
 mu <- 0.5
-sigma <-0.1
-x <- numeric(length(t))
+sigma <- 0.5
+timemin <- 0
+timemax <- 20
+
+# Simulation settings
+seq_timestep <- seq(0.001, 0.5, 0.001)
+timestep <- 0.001 # Time step being used to generate the first set of the OU process
 t <- seq(timemin, timemax, timestep)
-x[1] <- 0
-for (i in 1:(length(t)-1)){ # First of all generat a sequence with timestep 0.001
-  x[i+1] <- rnorm(1, x[i] * exp(-nu * (t[i+1]-t[i])) + mu * (1 - exp(-nu * (t[i+1]-t[i]))), 
-                  sqrt( (sigma^2) * 0.5 / nu * (1-exp(-2*nu*(t[i+1]-t[i]))))
-                  )
-} 
+x <- numeric(length(t))
+x[1] <- 0 # initial value
 
-# plot(t, x, col = grey(.5, .5),  type = 'l', lty = 1, xlab = 't', ylab = expression('X'['t']), las = 1, bty = 'n')
-
-# Containers
-nu_estimates <- numeric(length(seq_timestep))
-mu_estimates <- numeric(length(seq_timestep))
-
-# Loop over timestep values
-for (i in seq_along(seq_timestep)) {
-  t_sub <- seq(timemin, timemax, seq_timestep[i])
-  x_sub <- x[t %in% t_sub]
-  delta <- seq_timestep[i]
-  result <- optim(par = c(1, 1), fn = Euler_LL_OU, X = x_sub, delta = delta)
-  nu_estimates[i] <- result$par[1]
-  mu_estimates[i] <- result$par[2]
+# Simulate one path using the exact OU transition
+for (i in 1:(length(t) - 1)) {
+  x[i + 1] <- rnorm(1,
+                    mean = x[i] * exp(-nu * timestep) + mu * (1 - exp(-nu * timestep)),
+                    sd = sqrt((sigma^2 * 0.5 / nu) * (1 - exp(-2 * nu * timestep)))
+  )
 }
 
-### plotting
-plot(seq_timestep, nu_estimates, type = 'o', pch = 16, col = 'blue', cex =  0.1,
-     ylim = range(c(- 5, 5)),
-     xlab = "Timestep", ylab = "Parameter Estimate",
-     main = "Estimates of OU Parameters by Timestep (Fixed Total Time)")
-lines(seq_timestep, mu_estimates, type = 'o', pch = 16, col = 'darkgreen', cex =  0.1,)
-abline(h = mu, col = 'darkgreen', lty = 2)
-abline(h = nu, col = 'blue', lty = 2)
+# Plot path
+plot(t, x, col = grey(0.5, 0.5), type = "l")
+abline(h = mu, col = "red")
 
-legend("bottomright", legend = c("Estimated ν", "Estimated μ", "True Value"),
-       col = c("blue", "darkgreen", "red"), lty = c(1, 1, 2), pch = 16)
+# Drift and Euler functions
+OU_drift <- function(x, theta) theta[1] * (theta[2] - x)
+
+dcEuler <- function(x, dt, x0, theta, drift) {
+  dd <- drift(x0, theta)
+  (x - x0) * dd - 0.5 * dt * dd^2
+}
+
+# Estimation results
+nu_euler <- numeric(length(seq_timestep)) # to store results from the Euler approximation
+mu_euler <- numeric(length(seq_timestep)) # to store results from the Euler approximation
+nu_exact <- numeric(length(seq_timestep)) # to store results from the exact likelihood
+mu_exact <- numeric(length(seq_timestep)) # to store results from the exact likelihood
+
+# Loop over timesteps
+for (i in seq_along(seq_timestep)) {
+  dt <- seq_timestep[i] # the current timestep
+  step <- round(dt / timestep) # steps needed to extract one subsample
+  idx <- seq(1, length(x), by = step)
+  x_sub <- x[idx] # extract the subsample based on the indexation
+  n <- length(x_sub) # sample size
+  
+  # ---- Euler pseudo-likelihood ----
+  negloglik_euler <- function(par) {
+    theta <- par
+    -sum(dcEuler(x_sub[2:n], dt, x_sub[1:(n - 1)], theta, OU_drift))
+  }
+  
+  result_euler <- tryCatch( 
+    optim(par = c(1.5, 1), fn = negloglik_euler,
+          method = "L-BFGS-B", lower = c(0, 0)),
+    error = function(e) list(par = c(NA, NA))
+  )
+  nu_euler[i] <- result_euler$par[1]
+  mu_euler[i] <- result_euler$par[2]
+  
+  # ---- Exact transition likelihood ----
+  negloglik_exact <- function(par) {
+    theta_nu <- par[1]
+    theta_mu <- par[2]
+    mean_vec <- x_sub[1:(n - 1)] * exp(-theta_nu * dt) +
+      theta_mu * (1 - exp(-theta_nu * dt))
+    var <- (sigma^2 / (2 * theta_nu)) * (1 - exp(-2 * theta_nu * dt))
+    
+    -sum(dnorm(x_sub[2:n], mean = mean_vec, sd = sqrt(var), log = TRUE)) ## from the true transition distribution, after log-transformation, and summed up.
+  }
+  
+  result_exact <- tryCatch(
+    optim(par = c(1.5, 1), fn = negloglik_exact,
+          method = "L-BFGS-B", lower = c(1e-6, 0)),
+    error = function(e) list(par = c(NA, NA))
+  )
+  nu_exact[i] <- result_exact$par[1]
+  mu_exact[i] <- result_exact$par[2]
+}
+
+# ---- Plot comparison ----
+plot(seq_timestep, nu_euler, type = "l", col = "blue",
+     ylim = range(0,2),
+     xlab = "Timestep", ylab = "Estimated Parameters",
+     main = "Euler vs Exact Likelihood Estimates")
+lines(seq_timestep, mu_euler, col = "red")
+lines(seq_timestep, nu_exact, col = "blue", lty = 2)
+lines(seq_timestep, mu_exact, col = "red", lty = 2)
+abline(h = c(nu, mu), col = c("blue", "red"), lty = 3)
+legend("bottomright",
+       legend = c("nu (Euler)", "mu (Euler)", "nu (Exact)", "mu (Exact)", "True nu", "True mu"),
+       col = c("blue", "red", "blue", "red", "blue", "red"), # colors
+       lty = c(1, 1, 2, 2, 3, 3), # line types 
+       bty = "n", # o or n.type of legend box. n is better, transparent.
+       cex = 0.5) # size of legend
+
