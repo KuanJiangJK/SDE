@@ -46,9 +46,8 @@ LL_euler <- function(mu, k, x, Dt) {
   return(logLik)
 }
 
-
+k_candidates <- 1:5
 MLEmu_mat <- matrix(NA, nrow = length(k_candidates), ncol = ncol(pmat))
-k_candidates <- 1:10
 for (i in 1: length(k_candidates)){
   k <- k_candidates[i]
   MLEmu_mat[i,] <- apply(pmat, 2, function(x){
