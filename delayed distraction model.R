@@ -9,8 +9,7 @@ c2 <- 1 # parameters for xt
 c3 <- 1 # parameters for xt
 mu <- 1 # parameters for yt
 sigma <- 0.5 # parameters for yt
-tau <- 5 # time delayed (steps)
-# 
+tau <- 5 # time steps delayed
 Dt <- 0.1
 T <- 10 # Time up to which paths should be simulated
 t <- seq(0, T, Dt)
@@ -20,12 +19,15 @@ Nlen <- T/Dt
 pmat_x <- matrix(0, ncol = Npaths, nrow = Nlen+1)
 pmat_y <- matrix(0, ncol = Npaths, nrow = Nlen+1)
 
+# generate from the 1st data to the tau+1'th  data
+# tau+1'th data point determined by tau'th data point, and the 0th difference of figures
+# tau+2'th data point determined by the tau+1'th data point, and the 1st differnce of figures (x1-x0)
 for (i in 1: (tau+1)){  
-  pmat_y[i+1, ] <- pmat_y[i, ]+ sigma * rnorm(Npaths, 0, sqrt(Dt)) 
+  pmat_y[i+1, ] <- pmat_y[i, ]+ sigma * rnorm(Npaths, 0, sqrt(Dt)) # the observation on ti, the i'th observation
   pmat_x[i+1, ] <- pmat_x[i, ]+ (c1*sin(c2*t[i]+c3) + pmat_y[i,]) * Dt
 }
 for(j in (tau+2):Nlen){
-  pmat_y[j+1, ] <- pmat_y[j, ] + mu*(pmat_x[(j-tau), ] - pmat_x[(j-tau-1), ])*Dt + sigma*rnorm(Npaths, 0, sqrt(Dt)) 
+  pmat_y[j+1, ] <- pmat_y[j, ] + mu*(pmat_x[(j-tau), ] - pmat_x[(j-tau-1), ])*Dt + sigma*rnorm(Npaths, 0, sqrt(Dt))  # the observation on tj, the j'th observation
   pmat_x[j+1, ] <- pmat_x[j, ]+ (c1*sin(c2*t[j]+c3) + pmat_y[j,]) * Dt
 }
 
