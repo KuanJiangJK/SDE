@@ -81,6 +81,7 @@ foo <- function(idx, mu, sigmasq, x, tau){
 # plot(1:20, LLs, xlab = 'tau', ylab = 'LL', type = 'l')
 theta <- list()
 LLs <- list()
+# wrap the solution for one path into 1 function, with given delay
 path_est <- function(x, i){
   theta <- MLE(i, x)
   LLs <- LL(x, theta, i)
@@ -90,11 +91,17 @@ path_est <- function(x, i){
 # i = 1 # test
 # total_est <- apply(pmat_y, MARGIN = 2, function(x) path_est(x, i)) # estimate for only 1 candidate i
 # total_est <- do.call(rbind, apply(pmat_y, MARGIN = 2, function(x) path_est(x, i))) # estimate for only 1 candidate i
+
+# apply the 1 path solving function to all paths and all candidate tau's
 total_est_tau <- lapply(1:20, function(i) do.call(rbind, apply(pmat_y, MARGIN = 2, function(x) path_est(x, i))))
+# row bind the list to a dataframe
 total_est_tau <- do.call(rbind, total_est_tau)
+# add another variable for path indicator
 total_est_tau$path <- rep(1:Npaths, 20)
+# find the best tau for each path
 path_tau <- lapply(split(total_est_tau, total_est_tau$path), function(x) x$tau[which.max(x$likelihood)])
 table(do.call(rbind, path_tau))
+# tau = 8 is the best estimate, subset the estimates when tau == 8 and calculate median and IC
 est_tau8 <- subset(total_est_tau, tau == 8)
 median(est_tau8$mu) # -1.945386
 median(est_tau8$sigma2) # 1.005818
